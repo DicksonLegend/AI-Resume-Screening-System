@@ -184,14 +184,6 @@ To retrain models with new data:
 4. Push to the branch (`git push origin feature/new-feature`)
 5. Create a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## ⚠️ Disclaimer
-
-This AI system is designed to assist in resume screening but should not be the sole basis for hiring decisions. Human review and judgment are essential in the recruitment process.
-
 ## 🆘 Support
 
 For issues and questions:
