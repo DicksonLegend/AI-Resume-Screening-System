@@ -1,0 +1,8 @@
+streamlit
+joblib
+PyMuPDF
+nltk
+scikit-learn
+xgboost
+numpy
+pandas

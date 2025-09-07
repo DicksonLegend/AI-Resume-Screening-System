@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual Environment
+myenv/
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Model Files (Large - should not be in git)
+saved_models/
+models/
+*.joblib
+*.pkl
+*.pickle
+
+# Data Files (Large/Sensitive)
+comprehensive_resume_dataset.csv
+resume_dataset.csv
+resumedata.pdf
+*.csv
+
+# Database Files
+*.sqlite3
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Streamlit
+.streamlit/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment Variables
+.env
+
+# NLTK Data
+nltk_data/
+
+# Temporary files
+*.tmp
+*.temp
