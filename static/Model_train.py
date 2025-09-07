@@ -1,219 +1,164 @@
-import os
-import re
-import string
-import fitz  # PyMuPDF for PDF processing
-import numpy as np
-import pandas as pd
-import nltk
 import joblib
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
+import pymupdf as fitz
 
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
-import warnings
-warnings.filterwarnings('ignore')
-
-# Create necessary folders
-os.makedirs("static", exist_ok=True)
-os.makedirs("models", exist_ok=True)  # Use models folder instead of saved_models
-os.makedirs("saved_models", exist_ok=True)  # Keep saved_models for backward compatibility
-
-print("🚀 Starting Resume Classification Model Training...")
-print(f"📅 Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print("=" * 60)
-
-# Download required NLTK resources
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-nltk.download('punkt_tab')
-
-# ----------- Step 1: Load and preprocess dataset -----------
-print("📂 Loading dataset...")
-df = pd.read_csv("comprehensive_resume_dataset.csv")  # Large multi-category dataset with 50 realistic resumes
-
-print(f"✅ Dataset loaded successfully!")
-print(f"📊 Dataset shape: {df.shape}")
-print(f"📋 Categories: {df['Category'].unique()}")
-print(f"📈 Category distribution:\n{df['Category'].value_counts()}")
-print("-" * 40)
-
-# Preprocess function
-def preprocess_text(text):
-    """Enhanced text preprocessing with better cleaning"""
-    if pd.isna(text):
-        return ""
-    
-    text = str(text).lower()
-    # Remove special characters but keep important ones
-    text = re.sub(r'[^\w\s\+\#\.]', ' ', text)
-    # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text)
-    
-    words = word_tokenize(text)
-    words = [word for word in words if word not in stopwords.words("english") and len(word) > 2]
-    lemmatizer = WordNetLemmatizer()
-    words = [lemmatizer.lemmatize(word) for word in words]
-    return " ".join(words)
-
-print("🔄 Preprocessing text data...")
-# Apply preprocessing
-df["cleaned_text"] = df["Resume"].apply(preprocess_text)
-print("✅ Text preprocessing completed!")
-print("-" * 40)
-
-# ----------- Step 2: Feature extraction using TF-IDF -----------
-print("🔤 Extracting features using TF-IDF...")
-vectorizer = TfidfVectorizer(
-    max_features=5000,
-    ngram_range=(1, 2),  # Include unigrams and bigrams
-    min_df=2,  # Ignore terms that appear in less than 2 documents
-    max_df=0.8,  # Ignore terms that appear in more than 80% of documents
-    stop_words='english'
-)
-X = vectorizer.fit_transform(df["cleaned_text"])
-print(f"✅ Feature extraction completed! Shape: {X.shape}")
-print("-" * 40)
-
-# ----------- Step 3: Label Encoding -----------
-print("🏷️ Encoding labels...")
-label_encoder = LabelEncoder()
-y = label_encoder.fit_transform(df["Category"])
-print(f"✅ Label encoding completed! Classes: {label_encoder.classes_}")
-print("-" * 40)
-
-# ----------- Step 4: Train-test split -----------
-print("🔀 Splitting data into train and test sets...")
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, 
-    test_size=0.2, 
-    random_state=42, 
-    stratify=y  # Ensure balanced split across all categories
-)
-print(f"✅ Data split completed!")
-print(f"📊 Training set shape: {X_train.shape}")
-print(f"📊 Test set shape: {X_test.shape}")
-print("-" * 40)
-
-# ----------- Step 5: Define and train models (basic configurations) -----------
-print("🤖 Training machine learning models...")
-
-# Define models with basic configurations
-models = {
-    "Logistic Regression": LogisticRegression(
-        max_iter=1000,
-        random_state=42
-    ),
-    "Random Forest": RandomForestClassifier(
-        n_estimators=100,
-        random_state=42
-    ),
-    "XGBoost": XGBClassifier(
-        random_state=42,
-        use_label_encoder=False,
-        eval_metric='mlogloss'
-    )
+# Load the enhanced trained models (Updated paths)
+model_paths = {
+    "Logistic Regression Enhanced": "D:/ML IA3 PROJECT/saved_models/Logistic_Regression_Enhanced.joblib",
+    "Random Forest Enhanced": "D:/ML IA3 PROJECT/saved_models/Random_Forest_Enhanced.joblib",
+    "XGBoost Enhanced": "D:/ML IA3 PROJECT/saved_models/XGBoost_Enhanced.joblib",
+    "Ensemble Enhanced": "D:/ML IA3 PROJECT/saved_models/Ensemble_Enhanced.joblib"
 }
 
-# Store results for comparison
-results = {}
+try:
+    models = {name: joblib.load(path) for name, path in model_paths.items()}
+    print("✅ Enhanced models loaded successfully!")
+except FileNotFoundError as e:
+    print(f"❌ Error loading models: {e}")
+    print("🔧 Make sure you've run the fine_tune.ipynb notebook to create enhanced models")
 
-# Train and evaluate each model
-for name, model in models.items():
-    print(f"\n🔄 Training {name}...")
+# Load the enhanced vectorizer and label encoder
+try:
+    vectorizer = joblib.load("D:/ML IA3 PROJECT/saved_models/vectorizer_enhanced.joblib")
+    label_encoder = joblib.load("D:/ML IA3 PROJECT/saved_models/label_encoder_enhanced.joblib")
+    print("✅ Enhanced preprocessing components loaded!")
+except FileNotFoundError:
+    # Fallback to original files
+    vectorizer = joblib.load("D:/ML IA3 PROJECT/saved_models/vectorizer.joblib")
+    label_encoder = joblib.load("D:/ML IA3 PROJECT/saved_models/label_encoder.joblib")
+    print("✅ Original preprocessing components loaded!")
+
+# Enhanced text preprocessing (matching app.py)
+def enhanced_text_preprocessing(text):
+    """Enhanced text preprocessing with better feature extraction"""
+    import pandas as pd
+    import re
     
-    # Train the model
-    model.fit(X_train, y_train)
+    if pd.isna(text) or not text:
+        return ""
     
-    # Make predictions
-    y_pred = model.predict(X_test)
+    # Convert to lowercase
+    text = text.lower()
     
-    # Calculate metrics
-    accuracy = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='weighted')
+    # Extract years of experience
+    experience_pattern = r'(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)'
+    experience_match = re.search(experience_pattern, text)
+    if experience_match:
+        text += f" experience_years_{experience_match.group(1)}"
     
-    # Cross-validation score (reduce CV folds for small dataset)
-    cv_folds = min(3, len(y_train) // len(label_encoder.classes_))  # Adaptive CV based on dataset size
-    if cv_folds < 2:
-        cv_folds = 2
-    cv_scores = cross_val_score(model, X_train, y_train, cv=cv_folds, scoring='accuracy')
-    
-    # Store results
-    results[name] = {
-        'accuracy': accuracy,
-        'f1_score': f1,
-        'cv_mean': cv_scores.mean(),
-        'cv_std': cv_scores.std()
+    # Extract education level
+    education_keywords = {
+        'phd': 'doctorate_level',
+        'ph.d': 'doctorate_level',
+        'doctorate': 'doctorate_level',
+        'm.s': 'masters_level',
+        'm.tech': 'masters_level',
+        'mba': 'masters_level',
+        'masters': 'masters_level',
+        'b.tech': 'bachelors_level',
+        'b.s': 'bachelors_level',
+        'b.e': 'bachelors_level',
+        'bachelors': 'bachelors_level'
     }
     
-    print(f"✅ {name} Training completed!")
-    print(f"📊 Test Accuracy: {accuracy:.4f}")
-    print(f"📊 F1 Score: {f1:.4f}")
-    print(f"📊 CV Score ({cv_folds}-fold): {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-    print(f"\n📋 Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+    for edu_key, edu_level in education_keywords.items():
+        if edu_key in text:
+            text += f" {edu_level}"
     
-    # Save model to models folder
-    model_filename = f"models/{name.replace(' ', '_')}.joblib"
-    joblib.dump(model, model_filename)
-    print(f"💾 {name} model saved as {model_filename}")
+    # Extract company tier
+    faang_companies = ['google', 'apple', 'facebook', 'amazon', 'netflix', 'microsoft', 'meta']
+    for company in faang_companies:
+        if company in text:
+            text += " tier1_company"
+            break
     
-    # Also save to saved_models for backward compatibility
-    legacy_filename = f"saved_models/{name.replace(' ', '_')}.joblib"
-    joblib.dump(model, legacy_filename)
-    print(f"💾 {name} model also saved as {legacy_filename}")
+    # Remove special characters but keep important programming symbols
+    text = re.sub(r'[^\w\s\+\#\.]', ' ', text)
     
-    print("=" * 60)
+    # Remove extra whitespace
+    text = ' '.join(text.split())
+    
+    return text
 
-# ----------- Step 6: Save vectorizer and label encoder -----------
-print("💾 Saving preprocessing components...")
+# Function to extract text from a PDF
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    doc = fitz.open(pdf_path)
+    for page in doc:
+        text += page.get_text("text")
+    return text
 
-# Save to models folder
-vectorizer_path = "models/vectorizer.joblib"
-label_encoder_path = "models/label_encoder.joblib"
+# Updated predict function with enhanced preprocessing
+def predict_job_suitability(pdf_path):
+    """Classify the resume and determine job suitability using enhanced models."""
+    resume_text = extract_text_from_pdf(pdf_path)
+    cleaned_text = enhanced_text_preprocessing(resume_text)
 
-joblib.dump(vectorizer, vectorizer_path)
-joblib.dump(label_encoder, label_encoder_path)
+    # Convert text into numerical features using enhanced TF-IDF
+    vectorized_text = vectorizer.transform([cleaned_text])
 
-print(f"✅ Vectorizer saved as {vectorizer_path}")
-print(f"✅ Label Encoder saved as {label_encoder_path}")
+    # Get predictions from each model
+    predictions = {}
+    confidences = {}
+    
+    for name, model in models.items():
+        pred = model.predict(vectorized_text)[0]
+        # Get confidence if available
+        if hasattr(model, 'predict_proba'):
+            proba = model.predict_proba(vectorized_text)[0]
+            confidence = max(proba)
+            confidences[name] = confidence
+        
+        predictions[name] = label_encoder.inverse_transform([pred])[0]
 
-# Also save to saved_models for backward compatibility
-joblib.dump(vectorizer, "saved_models/vectorizer.joblib")
-joblib.dump(label_encoder, "saved_models/label_encoder.joblib")
-print("✅ Backup copies saved to saved_models folder")
+    # Use ensemble model for final prediction if available
+    if "Ensemble Enhanced" in predictions:
+        final_prediction = predictions["Ensemble Enhanced"]
+        final_confidence = confidences.get("Ensemble Enhanced", 0)
+    else:
+        # Majority voting fallback
+        prediction_values = list(predictions.values())
+        final_prediction = max(set(prediction_values), key=prediction_values.count)
+        final_confidence = sum(confidences.values()) / len(confidences) if confidences else 0
 
-# ----------- Step 7: Model comparison and summary -----------
-print("\n" + "=" * 60)
-print("📊 MODEL COMPARISON SUMMARY")
-print("=" * 60)
+    # Updated suitability levels for 9 categories
+    suitability_levels = {
+        "Data Science": "Highly Suitable ⭐⭐⭐⭐⭐",
+        "Machine Learning Engineer": "Highly Suitable ⭐⭐⭐⭐⭐",
+        "Software Engineer": "Highly Suitable ⭐⭐⭐⭐",
+        "Full Stack Developer": "Highly Suitable ⭐⭐⭐⭐",
+        "DevOps Engineer": "Highly Suitable ⭐⭐⭐⭐",
+        "Product Manager": "Highly Suitable ⭐⭐⭐⭐",
+        "Frontend Developer": "Suitable ⭐⭐⭐",
+        "Backend Developer": "Suitable ⭐⭐⭐",
+        "Web Developer": "Suitable ⭐⭐⭐"
+    }
 
-best_model = max(results, key=lambda x: results[x]['accuracy'])
-print(f"🏆 Best Model: {best_model}")
-print(f"🎯 Best Accuracy: {results[best_model]['accuracy']:.4f}")
+    job_suitability = suitability_levels.get(final_prediction, "Suitable ⭐⭐⭐")
 
-print(f"\n📈 All Model Results:")
-for model_name, metrics in results.items():
-    print(f"• {model_name}:")
-    print(f"  - Accuracy: {metrics['accuracy']:.4f}")
-    print(f"  - F1 Score: {metrics['f1_score']:.4f}")
-    print(f"  - CV Score: {metrics['cv_mean']:.4f} ± {metrics['cv_std']:.4f}")
+    # Display enhanced results
+    print("\n" + "="*60)
+    print("🤖 ENHANCED RESUME CLASSIFICATION RESULTS")
+    print("="*60)
+    
+    print(f"\n🎯 **Final Prediction:** {final_prediction}")
+    print(f"🔥 **Confidence:** {final_confidence:.1%}")
+    print(f"⭐ **Suitability:** {job_suitability}")
+    
+    print(f"\n📊 **Individual Model Predictions:**")
+    for model, category in predictions.items():
+        conf = confidences.get(model, 0)
+        print(f"🔸 {model}: {category} (Confidence: {conf:.1%})")
+    
+    print("="*60)
 
-print("\n" + "=" * 60)
-print("🎉 MODEL TRAINING COMPLETED SUCCESSFULLY!")
-print(f"📅 Training finished at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"📂 Models saved in: ./models/ folder")
-print(f"📂 Backup models in: ./saved_models/ folder")
-print("=" * 60)
+    return final_prediction, job_suitability
+
+# Example usage
+if __name__ == "__main__":
+    resume_pdf_path = "D:/ML IA3 PROJECT/ResumeML.pdf"  # Change this to your actual PDF file path
+    try:
+        predict_job_suitability(resume_pdf_path)
+    except FileNotFoundError:
+        print("❌ PDF file not found. Please check the file path.")
+    except Exception as e:
+        print(f"❌ Error: {e}")
